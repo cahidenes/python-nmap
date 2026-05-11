@@ -6,6 +6,11 @@ import os
 import threading
 import logging
 from tqdm import tqdm
+from rich.table import Table
+from rich.console import Console
+from rich import box
+
+console = Console()
 
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 logging.getLogger("scapy.interactive").setLevel(logging.ERROR)
@@ -32,11 +37,11 @@ def half_scan(ip, port):
                 service = "unknown"
             with opens_lock:
                 opens.append(
-                    (int(ip.split(".")[0]), '.',
+                    ((int(ip.split(".")[0]), '.',
                      int(ip.split(".")[1]), '.',
                      int(ip.split(".")[2]), '.',
-                     int(ip.split(".")[3]), ' : ',
-                     port, f" ({service}) open"))
+                     int(ip.split(".")[3])),
+                     port, service))
             return True
         elif response.getlayer(TCP).flags == 0x14:  # RST-ACK
             return False
@@ -61,11 +66,11 @@ def full_scan(ip, port):
                 service = "unknown"
             with opens_lock:
                 opens.append(
-                    (int(ip.split(".")[0]), '.',
+                    ((int(ip.split(".")[0]), '.',
                      int(ip.split(".")[1]), '.',
                      int(ip.split(".")[2]), '.',
-                     int(ip.split(".")[3]), ' : ',
-                     port, f" ({service}) open. Banner: {banner}"))
+                     int(ip.split(".")[3])),
+                     port, service, banner))
         return result == 0
     except Exception as e:
         return False
@@ -77,11 +82,10 @@ def icmp_ping(ip):
     if response is None:
         return False
     with opens_lock:
-        opens.append((int(ip.split(".")[0]), '.',
+        opens.append(((int(ip.split(".")[0]), '.',
                       int(ip.split(".")[1]), '.',
                       int(ip.split(".")[2]), '.',
-                      int(ip.split(".")[3]),
-                      " is alive"))
+                      int(ip.split(".")[3])), "alive"))
     return True
 
 def scan(ips, ports, method="half"):
@@ -111,8 +115,28 @@ def scan(ips, ports, method="half"):
     progress.close()
     
     opens.sort()
-    for open in opens:
-        print(''.join(map(str, open)))
+    table = Table(title="Scan Results", box=box.ROUNDED, show_header=True, header_style="bold white", show_lines=True)
+    if method == "full":
+        table.add_column("IP", justify="left", style="cyan")
+        table.add_column("Port", justify="left", style="green")
+        table.add_column("Service", justify="left", style="yellow")
+        table.add_column("Banner", justify="left", style="white")
+        for ip, port, service, banner in opens:
+            table.add_row(''.join(map(str, ip)), str(port), service, banner)
+    elif method == "half":
+        table.add_column("IP", justify="left", style="cyan")
+        table.add_column("Port", justify="left", style="green")
+        table.add_column("Service", justify="left", style="yellow")
+        for ip, port, service in opens:
+            table.add_row(''.join(map(str, ip)), str(port), service)
+    else:
+        table.add_column("IP", justify="left", style="cyan")
+        table.add_column("Status", justify="left", style="green")
+        for ip, status in opens:
+            table.add_row(''.join(map(str, ip)), status)
+    
+    console.print(table)
+
 
 def parse_ips(target):
     ips = []
