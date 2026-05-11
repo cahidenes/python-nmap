@@ -4,6 +4,11 @@ import argparse
 import ipaddress
 import os
 import threading
+import logging
+
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)   # suppress warnings
+logging.getLogger("scapy.interactive").setLevel(logging.ERROR)
+logging.getLogger("scapy.loading").setLevel(logging.ERROR)
 
 conf.verb = 0
 
