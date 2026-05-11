@@ -27,6 +27,20 @@ def full_scan(ip, port):
     except Exception as e:
         return False
 
+def scan(ips, ports, method="half"):
+    if method == "half" and not HALF_SCAN_AVAILABLE:
+        print("Half scan is not available. Falling back to full scan.")
+        method = "full"
+    for ip in ips:
+        for port in ports:
+            if method == "half" and HALF_SCAN_AVAILABLE:
+                result = half_scan(ip, port)
+            else:
+                result = full_scan(ip, port)
+    
+            if result:
+                print(f"{ip}:{port} is open")
+
 def main():
     conf.verb = 0
     if os.geteuid() != 0:
@@ -34,7 +48,7 @@ def main():
         global HALF_SCAN_AVAILABLE
         HALF_SCAN_AVAILABLE = False
 
-    print(full_scan("10.40.31.13", 22))
+    scan(["10.40.31.13", "127.0.0.1"], [20, 21, 22, 23, 24, 25, 26, 27, 28], method="half")
 
 if __name__ == "__main__":
     main()
