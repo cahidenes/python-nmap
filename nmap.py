@@ -24,8 +24,12 @@ def half_scan(ip, port):
         return False
     elif response.haslayer(TCP):
         if response.getlayer(TCP).flags == 0x12:  # SYN-ACK
+            try:
+                service = socket.getservbyport(port, "tcp")
+            except Exception:
+                service = "unknown"
             with opens_lock:
-                opens.append(f"{ip}:{port} open")
+                opens.append(f"{ip} : {port} ({service}) open")
             return True
         elif response.getlayer(TCP).flags == 0x14:  # RST-ACK
             return False
@@ -37,8 +41,12 @@ def full_scan(ip, port):
         result = sock.connect_ex((ip, port))
         sock.close()
         if result == 0:
+            try:
+                service = socket.getservbyport(port, "tcp")
+            except Exception:
+                service = "unknown"
             with opens_lock:
-                opens.append(f"{ip}:{port} open")
+                opens.append(f"{ip} : {port} ({service}) open")
         return result == 0
     except Exception as e:
         return False
