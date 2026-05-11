@@ -5,6 +5,7 @@ import ipaddress
 import os
 import threading
 import logging
+from tqdm import tqdm
 
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)   # suppress warnings
 logging.getLogger("scapy.interactive").setLevel(logging.ERROR)
@@ -16,6 +17,7 @@ opens = []
 opens_lock = threading.Lock()
 
 def half_scan(ip, port):
+    progress.update(1)
     source_port = 12345
     packet = IP(dst=ip)/TCP(sport=source_port, dport=port, flags='S')
 
@@ -35,6 +37,7 @@ def half_scan(ip, port):
             return False
 
 def full_scan(ip, port):
+    progress.update(1)
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(1)
@@ -58,6 +61,7 @@ def full_scan(ip, port):
         return False
 
 def icmp_ping(ip):
+    progress.update(1)
     packet = IP(dst=ip)/ICMP()
     response = sr1(packet, timeout=1)
     if response is None:
@@ -73,7 +77,6 @@ def scan(ips, ports, method="half"):
         if method == "ping":
             t = threading.Thread(target=icmp_ping, args=(ip,))
             threads.append(t)
-            t.start()
         else:
             for port in ports:
                 if method == "half":
@@ -81,11 +84,17 @@ def scan(ips, ports, method="half"):
                 else:
                     t = threading.Thread(target=full_scan, args=(ip, port))
                 threads.append(t)
-                t.start()
 
-    # Wait for all threads to complete
+    global progress
+    progress = tqdm(total=len(threads), desc="Scanning", unit="port")
+
+    for t in threads:
+        t.start()
+
     for t in threads:
         t.join()
+    
+    progress.close()
     
     opens.sort()
     for open in opens:
