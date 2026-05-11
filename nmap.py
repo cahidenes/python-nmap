@@ -1,10 +1,8 @@
-from scapy.all import IP, TCP, sr1, conf
+from scapy.all import IP, TCP, ICMP, sr1, conf
 import socket
 import argparse
 import ipaddress
 import os
-
-HALF_SCAN_AVAILABLE = True
 
 def half_scan(ip, port):
     source_port = 12345
@@ -29,19 +27,25 @@ def full_scan(ip, port):
     except Exception as e:
         return False
 
+def icmp_ping(ip):
+    packet = IP(dst=ip)/ICMP()
+    response = sr1(packet, timeout=1)
+    return response is not None
+
 def scan(ips, ports, method="half"):
-    if method == "half" and not HALF_SCAN_AVAILABLE:
-        print("Half scan is not available. Falling back to full scan.")
-        method = "full"
     for ip in ips:
-        for port in ports:
-            if method == "half" and HALF_SCAN_AVAILABLE:
-                result = half_scan(ip, port)
-            else:
-                result = full_scan(ip, port)
-    
-            if result:
-                print(f"{ip}:{port} is open")
+        if method == "ping":
+            if icmp_ping(ip):
+                print(f"{ip} is alive")
+        else:
+            for port in ports:
+                if method == "half":
+                    result = half_scan(ip, port)
+                else:
+                    result = full_scan(ip, port)
+        
+                if result:
+                    print(f"{ip}:{port} is open")
 
 def parse_ips(target):
     ips = []
@@ -87,16 +91,15 @@ Example usage:
         )
     parser.add_argument("-t", "--target", required=True, help="Target IP address(es) or CIDR range (e.g., 192.168.1.1 or 192.168.1.0/24)")
     parser.add_argument("-p", "--ports", required=True, help="Target port(s) (e.g., 80,443 or 20-30)")
-    parser.add_argument("-m", "--method", choices=["half", "full"], default="half", help="Scan method to use (default: half)")
+    parser.add_argument("-m", "--method", choices=["ping", "half", "full"], default="half", help="Scan method to use (default: half)")
     args = parser.parse_args()
     ips = parse_ips(args.target)
     ports = parse_ports(args.ports)
 
     conf.verb = 0
-    if os.geteuid() != 0:
-        print("WARNING: In order to run half_scan, you need to run this script with root privileges.")
-        global HALF_SCAN_AVAILABLE
-        HALF_SCAN_AVAILABLE = False
+    if args.method  in ["ping", "half"] and os.geteuid() != 0:
+        print("ERROR: In order to run half_scan or ping, you need to run this script with root privileges.")
+        exit(1)
 
     scan(ips, ports, method=args.method)
 
