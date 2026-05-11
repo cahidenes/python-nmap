@@ -31,7 +31,12 @@ def half_scan(ip, port):
             except Exception:
                 service = "unknown"
             with opens_lock:
-                opens.append(f"{ip} : {port} ({service}) open")
+                opens.append(
+                    (int(ip.split(".")[0]), '.',
+                     int(ip.split(".")[1]), '.',
+                     int(ip.split(".")[2]), '.',
+                     int(ip.split(".")[3]), ' : ',
+                     port, f" ({service}) open"))
             return True
         elif response.getlayer(TCP).flags == 0x14:  # RST-ACK
             return False
@@ -55,7 +60,12 @@ def full_scan(ip, port):
             except Exception:
                 service = "unknown"
             with opens_lock:
-                opens.append(f"{ip} : {port} ({service}) open. Banner: {banner}")
+                opens.append(
+                    (int(ip.split(".")[0]), '.',
+                     int(ip.split(".")[1]), '.',
+                     int(ip.split(".")[2]), '.',
+                     int(ip.split(".")[3]), ' : ',
+                     port, f" ({service}) open. Banner: {banner}"))
         return result == 0
     except Exception as e:
         return False
@@ -67,7 +77,11 @@ def icmp_ping(ip):
     if response is None:
         return False
     with opens_lock:
-        opens.append(f"{ip} is alive")
+        opens.append((int(ip.split(".")[0]), '.',
+                      int(ip.split(".")[1]), '.',
+                      int(ip.split(".")[2]), '.',
+                      int(ip.split(".")[3]),
+                      " is alive"))
     return True
 
 def scan(ips, ports, method="half"):
@@ -98,7 +112,7 @@ def scan(ips, ports, method="half"):
     
     opens.sort()
     for open in opens:
-        print(open)
+        print(''.join(map(str, open)))
 
 def parse_ips(target):
     ips = []
