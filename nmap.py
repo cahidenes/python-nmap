@@ -7,7 +7,7 @@ import threading
 import logging
 from tqdm import tqdm
 
-logging.getLogger("scapy.runtime").setLevel(logging.ERROR)   # suppress warnings
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 logging.getLogger("scapy.interactive").setLevel(logging.ERROR)
 logging.getLogger("scapy.loading").setLevel(logging.ERROR)
 
@@ -47,7 +47,7 @@ def full_scan(ip, port):
         except:
             pass
 
-        banner = sock.recv(1024).decode("utf-8", errors="ignore").strip()
+        banner = sock.recv(1024).decode("utf-8", errors="ignore").strip().split("\n")[0] if result == 0 else ""
         sock.close()
         if result == 0:
             try:
