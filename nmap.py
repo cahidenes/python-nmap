@@ -1,4 +1,5 @@
 from scapy.all import IP, TCP, sr1, conf
+import socket
 import os
 
 HALF_SCAN_AVAILABLE = True
@@ -9,12 +10,22 @@ def half_scan(ip, port):
 
     response = sr1(packet, timeout=1)
     if response is None:
-        return 0
+        return False
     elif response.haslayer(TCP):
         if response.getlayer(TCP).flags == 0x12:  # SYN-ACK
-            return 1
+            return True
         elif response.getlayer(TCP).flags == 0x14:  # RST-ACK
-            return 0
+            return False
+
+def full_scan(ip, port):
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((ip, port))
+        sock.close()
+        return result == 0
+    except Exception as e:
+        return False
 
 def main():
     conf.verb = 0
@@ -23,7 +34,7 @@ def main():
         global HALF_SCAN_AVAILABLE
         HALF_SCAN_AVAILABLE = False
 
-    print(half_scan("10.40.31.13", 22))
+    print(full_scan("10.40.31.13", 22))
 
 if __name__ == "__main__":
     main()
