@@ -39,6 +39,12 @@ def full_scan(ip, port):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(1)
         result = sock.connect_ex((ip, port))
+        try:
+            sock.send(b"HEAD / HTTP/1.0\r\n\r\n")
+        except:
+            pass
+
+        banner = sock.recv(1024).decode("utf-8", errors="ignore").strip()
         sock.close()
         if result == 0:
             try:
@@ -46,7 +52,7 @@ def full_scan(ip, port):
             except Exception:
                 service = "unknown"
             with opens_lock:
-                opens.append(f"{ip} : {port} ({service}) open")
+                opens.append(f"{ip} : {port} ({service}) open. Banner: {banner}")
         return result == 0
     except Exception as e:
         return False
