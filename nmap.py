@@ -3,6 +3,12 @@ import socket
 import argparse
 import ipaddress
 import os
+import threading
+
+conf.verb = 0
+
+opens = []
+opens_lock = threading.Lock()
 
 def half_scan(ip, port):
     source_port = 12345
@@ -13,6 +19,8 @@ def half_scan(ip, port):
         return False
     elif response.haslayer(TCP):
         if response.getlayer(TCP).flags == 0x12:  # SYN-ACK
+            with opens_lock:
+                opens.append(f"{ip}:{port} open")
             return True
         elif response.getlayer(TCP).flags == 0x14:  # RST-ACK
             return False
@@ -23,6 +31,9 @@ def full_scan(ip, port):
         sock.settimeout(1)
         result = sock.connect_ex((ip, port))
         sock.close()
+        if result == 0:
+            with opens_lock:
+                opens.append(f"{ip}:{port} open")
         return result == 0
     except Exception as e:
         return False
@@ -30,22 +41,36 @@ def full_scan(ip, port):
 def icmp_ping(ip):
     packet = IP(dst=ip)/ICMP()
     response = sr1(packet, timeout=1)
-    return response is not None
+    if response is None:
+        return False
+    with opens_lock:
+        opens.append(f"{ip} is alive")
+    return True
 
 def scan(ips, ports, method="half"):
+    opens.clear()
+    threads = []
     for ip in ips:
         if method == "ping":
-            if icmp_ping(ip):
-                print(f"{ip} is alive")
+            t = threading.Thread(target=icmp_ping, args=(ip,))
+            threads.append(t)
+            t.start()
         else:
             for port in ports:
                 if method == "half":
-                    result = half_scan(ip, port)
+                    t = threading.Thread(target=half_scan, args=(ip, port))
                 else:
-                    result = full_scan(ip, port)
-        
-                if result:
-                    print(f"{ip}:{port} is open")
+                    t = threading.Thread(target=full_scan, args=(ip, port))
+                threads.append(t)
+                t.start()
+
+    # Wait for all threads to complete
+    for t in threads:
+        t.join()
+    
+    opens.sort()
+    for open in opens:
+        print(open)
 
 def parse_ips(target):
     ips = []
@@ -96,7 +121,6 @@ Example usage:
     ips = parse_ips(args.target)
     ports = parse_ports(args.ports)
 
-    conf.verb = 0
     if args.method  in ["ping", "half"] and os.geteuid() != 0:
         print("ERROR: In order to run half_scan or ping, you need to run this script with root privileges.")
         exit(1)
