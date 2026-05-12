@@ -181,7 +181,7 @@ Example usage:
 """
         )
     parser.add_argument("-t", "--target", required=True, help="Target IP address(es) or CIDR range (e.g., 192.168.1.1 or 192.168.1.0/24)")
-    parser.add_argument("-p", "--ports", required=True, help="Target port(s) (e.g., 80,443 or 20-30)")
+    parser.add_argument("-p", "--ports", default='80', help="Target port(s) (e.g., 80,443 or 20-30), default: 80")
     parser.add_argument("-m", "--method", choices=["ping", "half", "full"], default="half", help="Scan method to use (default: half)")
     args = parser.parse_args()
     ips = parse_ips(args.target)
